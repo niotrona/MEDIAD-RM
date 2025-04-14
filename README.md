@@ -1,1 +1,0 @@
-# MEDIAD-RM
