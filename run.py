@@ -1,18 +1,23 @@
-from fastapi import FastAPI
-from mediaflow_proxy.main import app as mediaflow_app  # Import mediaflow app
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse
 import httpx
-import re
-import string
 
-# Initialize the main FastAPI application
 main_app = FastAPI()
 
-# Manually add only non-static routes from mediaflow_app
-for route in mediaflow_app.routes:
-    if route.path != "/":  # Exclude the static file path
-        main_app.router.routes.append(route)
+@main_app.get("/mediaflow-proxy")
+async def proxy(request: Request, url: str):
+    headers = {
+        "Referer": "http://www.fawanews.com/",
+        "Origin": "http://www.fawanews.com",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
+    }
 
-# Run the main app
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(main_app, host="0.0.0.0", port=8080)
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, headers=headers, timeout=15.0)
+            return StreamingResponse(
+                iter([resp.content]),
+                media_type=resp.headers.get("content-type", "application/vnd.apple.mpegurl")
+            )
+    except Exception as e:
+        return {"error": str(e)}
